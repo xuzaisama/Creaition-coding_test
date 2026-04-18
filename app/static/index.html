@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>智能任务管理系统</title>
+    <link rel="stylesheet" href="/assets/styles.css?v=1.0.1" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="ambient ambient-grid"></div>
+
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-copy surface">
+          <p class="eyebrow">Task Ops Dashboard</p>
+          <h1>让任务管理看起来像一件值得投入的作品</h1>
+          <p class="hero-text">
+            这不是默认接口文档的壳子，而是一套直接连接后端 API 的任务控制台。
+            你可以在这里创建任务、筛选进度、搜索关键词、查看依赖树，并实时感受缓存命中状态。
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="/docs" target="_blank" rel="noreferrer">查看 API 文档</a>
+            <button class="button secondary" id="refresh-dashboard" type="button">刷新数据</button>
+          </div>
+        </div>
+
+        <div class="hero-status surface">
+          <div class="status-header">
+            <span class="eyebrow">Service Pulse</span>
+            <span class="status-pill" id="service-status">加载中</span>
+          </div>
+          <div class="service-meta" id="service-meta"></div>
+          <div class="stats-grid" id="stats-grid"></div>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="workspace-main">
+          <section class="surface panel form-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Composer</p>
+                <h2 id="form-title">创建新任务</h2>
+              </div>
+              <button class="text-button" id="reset-form" type="button">重置表单</button>
+            </div>
+
+            <form id="task-form" class="task-form">
+              <label class="field">
+                <span>标题</span>
+                <input id="task-title" name="title" type="text" placeholder="例如：完成发布检查清单" required />
+              </label>
+
+              <label class="field">
+                <span>描述</span>
+                <textarea
+                  id="task-description"
+                  name="description"
+                  rows="4"
+                  placeholder="补充任务背景、验收标准或关键说明"
+                ></textarea>
+              </label>
+
+              <div class="field-row">
+                <label class="field">
+                  <span>状态</span>
+                  <select id="task-status" name="status">
+                    <option value="pending">待处理</option>
+                    <option value="in_progress">进行中</option>
+                    <option value="completed">已完成</option>
+                  </select>
+                </label>
+
+                <label class="field">
+                  <span>优先级</span>
+                  <select id="task-priority" name="priority">
+                    <option value="low">低</option>
+                    <option value="medium" selected>中</option>
+                    <option value="high">高</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="field">
+                <span>标签</span>
+                <div id="tag-selector" class="tag-selector"></div>
+                <div id="selected-tags" class="selected-tags"></div>
+                <div class="tag-adder">
+                  <input id="new-tag-input" name="new-tag" type="text" placeholder="输入新标签，例如：ops" />
+                  <button class="button secondary" id="add-new-tag" type="button">添加新标签</button>
+                </div>
+              </label>
+
+              <div class="form-actions">
+                <button class="button primary" id="submit-button" type="submit">保存任务</button>
+                <button class="button ghost" id="cancel-edit" type="button">取消编辑</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="surface panel controls-panel">
+            <div class="panel-heading compact">
+              <div>
+                <p class="eyebrow">Control Deck</p>
+                <h2>筛选与搜索</h2>
+              </div>
+              <span class="cache-indicator" id="cache-indicator">X-Cache: --</span>
+            </div>
+
+            <div class="controls-grid">
+              <label class="field wide">
+                <span>搜索关键词</span>
+                <input id="search-input" type="search" placeholder="按标题或描述搜索任务" />
+              </label>
+
+              <label class="field">
+                <span>状态筛选</span>
+                <select id="filter-status">
+                  <option value="">全部</option>
+                  <option value="pending">待处理</option>
+                  <option value="in_progress">进行中</option>
+                  <option value="completed">已完成</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>优先级筛选</span>
+                <select id="filter-priority">
+                  <option value="">全部</option>
+                  <option value="low">低</option>
+                  <option value="medium">中</option>
+                  <option value="high">高</option>
+                </select>
+              </label>
+
+              <div class="field">
+                <span>标签筛选</span>
+                <div id="filter-tags" class="filter-tags"></div>
+              </div>
+
+              <label class="field">
+                <span>排序字段</span>
+                <select id="sort-by">
+                  <option value="created_at">创建时间</option>
+                  <option value="priority">优先级</option>
+                  <option value="status">状态</option>
+                </select>
+              </label>
+
+              <label class="field">
+                <span>排序方向</span>
+                <select id="sort-order">
+                  <option value="desc">降序</option>
+                  <option value="asc">升序</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="surface panel board-panel">
+            <div class="panel-heading compact">
+              <div>
+                <p class="eyebrow">Live Board</p>
+                <h2>任务总览</h2>
+              </div>
+              <div class="pagination">
+                <button class="text-button" id="prev-page" type="button">上一页</button>
+                <span id="page-indicator">第 1 页</span>
+                <button class="text-button" id="next-page" type="button">下一页</button>
+              </div>
+            </div>
+
+            <div id="task-board" class="task-board"></div>
+          </section>
+        </div>
+
+        <aside class="surface panel detail-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Inspector</p>
+              <h2>任务详情</h2>
+            </div>
+          </div>
+
+          <div id="detail-empty" class="detail-empty">
+            选择一张任务卡片，右侧会显示更完整的任务信息、依赖树和依赖管理入口。
+          </div>
+
+          <div id="detail-content" class="detail-content hidden">
+            <header class="detail-header">
+              <h3 id="detail-title">-</h3>
+              <p id="detail-description">-</p>
+            </header>
+
+            <div class="detail-meta" id="detail-meta"></div>
+            <div class="tag-row" id="detail-tags"></div>
+
+            <div class="dependency-card">
+              <div class="subheading">
+                <h4>添加依赖</h4>
+                <span>为当前任务绑定前置任务</span>
+              </div>
+
+              <div class="dependency-form">
+                <select id="dependency-select"></select>
+                <button class="button secondary" id="add-dependency" type="button">添加依赖</button>
+              </div>
+            </div>
+
+            <div class="dependency-card">
+              <div class="subheading">
+                <h4>直接依赖</h4>
+                <span>可以直接移除当前任务的一级依赖</span>
+              </div>
+              <div id="direct-dependencies" class="dependency-inline-list"></div>
+            </div>
+
+            <div class="dependency-card">
+              <div class="subheading">
+                <h4>依赖树</h4>
+                <span>展示当前任务的前置任务结构</span>
+              </div>
+              <div id="dependency-tree" class="dependency-tree"></div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <div class="toast-zone" id="toast-zone"></div>
+
+    <script src="/assets/app.js?v=1.0.1" defer></script>
+  </body>
+</html>
