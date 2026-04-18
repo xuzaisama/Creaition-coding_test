@@ -13,6 +13,8 @@ const COMMON_TAGS = [
   "ops",
 ];
 
+const API_MAX_PAGE_SIZE = 100;
+
 const state = {
   tasks: [],
   catalogTasks: [],
@@ -292,8 +294,7 @@ function updateLiveClockDisplay() {
 
 async function loadHealth() {
   try {
-    const response = await fetch("/health");
-    const payload = await response.json();
+    const { payload } = await fetchJson("/health");
     state.health = payload;
     renderHealth();
   } catch (error) {
@@ -303,14 +304,26 @@ async function loadHealth() {
 }
 
 async function loadCatalogTasks() {
-  const response = await fetch("/api/tasks?page=1&page_size=200&sort_by=created_at&order=desc");
-  const payload = await response.json();
-  state.catalogTasks = payload.items || [];
-  state.availableTagStats = buildTagStats(state.catalogTasks, state.customTags);
-  renderStats();
-  renderTagSelector();
-  renderSelectedTags();
-  renderFilterTags();
+  try {
+    const result = await fetchTaskCollection("/api/tasks", {
+      sort_by: "created_at",
+      order: "desc",
+    });
+    state.catalogTasks = result.items;
+    state.availableTagStats = buildTagStats(state.catalogTasks, state.customTags);
+    renderStats();
+    renderTagSelector();
+    renderSelectedTags();
+    renderFilterTags();
+  } catch (error) {
+    state.catalogTasks = [];
+    state.availableTagStats = buildTagStats([], state.customTags);
+    renderStats();
+    renderTagSelector();
+    renderSelectedTags();
+    renderFilterTags();
+    showToast(getErrorMessage(error), "error");
+  }
 }
 
 async function loadTasks(options = {}) {
@@ -358,8 +371,7 @@ async function listTasks() {
     params.append("tags", state.filters.tag);
   }
 
-  const response = await fetch(`/api/tasks?${params.toString()}`);
-  const payload = await response.json();
+  const { response, payload } = await fetchJson(`/api/tasks?${params.toString()}`);
 
   return {
     items: payload.items || [],
@@ -369,18 +381,11 @@ async function listTasks() {
 }
 
 async function searchTasks(keyword) {
-  const params = new URLSearchParams({
+  const { items: allItems, cacheStatus } = await fetchTaskCollection("/api/tasks/search", {
     q: keyword,
-    page: "1",
-    page_size: "200",
   });
-  const response = await fetch(`/api/tasks/search?${params.toString()}`);
-  const payload = await response.json();
-  if (!response.ok) {
-    throw payload;
-  }
 
-  const filteredTasks = applyLocalFilters(payload.items || []);
+  const filteredTasks = applyLocalFilters(allItems);
   const total = filteredTasks.length;
   const start = (state.currentPage - 1) * state.pageSize;
   const items = filteredTasks.slice(start, start + state.pageSize);
@@ -388,7 +393,7 @@ async function searchTasks(keyword) {
   return {
     items,
     total,
-    cacheStatus: response.headers.get("X-Cache"),
+    cacheStatus,
   };
 }
 
@@ -460,20 +465,12 @@ async function selectTask(taskId, options = {}) {
 }
 
 async function fetchTaskDetail(taskId) {
-  const response = await fetch(`/api/tasks/${taskId}`);
-  const payload = await response.json();
-  if (!response.ok) {
-    throw payload;
-  }
+  const { response, payload } = await fetchJson(`/api/tasks/${taskId}`);
   return { payload, cacheStatus: response.headers.get("X-Cache") };
 }
 
 async function fetchDependencyTree(taskId) {
-  const response = await fetch(`/api/tasks/${taskId}/dependencies/tree`);
-  const payload = await response.json();
-  if (!response.ok) {
-    throw payload;
-  }
+  const { response, payload } = await fetchJson(`/api/tasks/${taskId}/dependencies/tree`);
   return { payload, cacheStatus: response.headers.get("X-Cache") };
 }
 
@@ -924,16 +921,61 @@ function renderTreeNode(node) {
 }
 
 async function apiRequest(url, options = {}) {
+  const { payload } = await fetchJson(url, options);
+  return payload;
+}
+
+async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
   if (response.status === 204) {
-    return {};
+    return { response, payload: {} };
   }
 
   const payload = await response.json();
   if (!response.ok) {
     throw payload;
   }
-  return payload;
+  return { response, payload };
+}
+
+async function fetchTaskCollection(path, baseParams = {}) {
+  const items = [];
+  let total = 0;
+  let page = 1;
+  let cacheStatus = "--";
+
+  // Pull all pages while respecting the API limit so dashboard stats stay accurate.
+  while (true) {
+    const params = new URLSearchParams();
+
+    Object.entries(baseParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.set(key, String(value));
+      }
+    });
+
+    params.set("page", String(page));
+    params.set("page_size", String(API_MAX_PAGE_SIZE));
+
+    const { response, payload } = await fetchJson(`${path}?${params.toString()}`);
+    const pageItems = payload.items || [];
+
+    items.push(...pageItems);
+    total = Number(payload.total || items.length);
+    cacheStatus = response.headers.get("X-Cache") || cacheStatus;
+
+    if (!pageItems.length || pageItems.length < API_MAX_PAGE_SIZE || items.length >= total) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return {
+    items,
+    total,
+    cacheStatus,
+  };
 }
 
 function buildTagStats(tasks, extraTags = []) {
