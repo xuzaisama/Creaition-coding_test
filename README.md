@@ -294,4 +294,4 @@ Notes:
 
 ## Time Spent
 
-Approximately 4 hours for the original challenge scope, plus additional time later for bug fixes, UI improvements, CI repair, and documentation refinement.
+Approximately 3 hours for the original challenge scope, plus additional time later for bug fixes, UI improvements, CI repair, and documentation refinement.
