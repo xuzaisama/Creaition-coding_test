@@ -46,6 +46,7 @@ def _task_search_cache_key(*, query: str, page: int, page_size: int) -> str:
         "page": page,
         "page_size": page_size,
     }
+    # Hashing the full parameter set keeps cache keys stable even when queries grow.
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
     return f"task:search:{digest}"
 
@@ -69,11 +70,14 @@ def _task_list_cache_key(
         "sort_by": sort_by.value,
         "order": order.value,
     }
+    # List responses depend on several filters, so the cache key is derived from a
+    # normalized payload rather than from a raw query string.
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
     return f"task:list:{digest}"
 
 
 def _invalidate_task_read_caches() -> None:
+    # Any write can affect list, detail, search, and dependency tree responses.
     task_cache.invalidate_prefix("task:")
 
 

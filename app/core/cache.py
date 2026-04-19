@@ -26,9 +26,11 @@ class TTLCache(Generic[T]):
 
             expires_at, value = item
             if expires_at <= monotonic():
+                # Expired entries are removed lazily on access to keep the cache simple.
                 self._store.pop(key, None)
                 return None
 
+            # Return a copy so cached payloads cannot be mutated by callers.
             return deepcopy(value)
 
     def set(self, key: str, value: T, ttl_seconds: int | None = None) -> None:

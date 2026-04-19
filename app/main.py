@@ -18,6 +18,8 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Keep database initialization in the application lifespan so tests and local runs
+    # share the same startup behavior.
     init_db()
     yield
 
@@ -37,6 +39,8 @@ def error_response(
     message: str,
     details: list[dict] | None = None,
 ) -> JSONResponse:
+    # Centralizing error payload construction keeps API failures consistent across
+    # validation, business-rule, and unexpected runtime errors.
     payload: dict[str, object] = {
         "error": error,
         "message": message,

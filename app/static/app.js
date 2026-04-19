@@ -41,6 +41,9 @@ const state = {
   },
 };
 
+// Form tags, filter tags, and aggregate tag stats are stored separately so selecting
+// a tag in one part of the UI never mutates another part by accident.
+
 const elements = {
   refreshButton: document.querySelector("#refresh-dashboard"),
   serviceStatus: document.querySelector("#service-status"),
@@ -385,6 +388,8 @@ async function searchTasks(keyword) {
     q: keyword,
   });
 
+  // Search returns a broader match set first, then reuses the same local filters and
+  // pagination rules as the main board for a consistent UI.
   const filteredTasks = applyLocalFilters(allItems);
   const total = filteredTasks.length;
   const start = (state.currentPage - 1) * state.pageSize;
@@ -944,7 +949,8 @@ async function fetchTaskCollection(path, baseParams = {}) {
   let page = 1;
   let cacheStatus = "--";
 
-  // Pull all pages while respecting the API limit so dashboard stats stay accurate.
+  // Pull all pages while respecting the API limit so dashboard stats and tag counts
+  // are computed from the full dataset instead of just the visible page.
   while (true) {
     const params = new URLSearchParams();
 
@@ -1016,6 +1022,7 @@ function getFormTagStats() {
     ? [...state.availableTagStats]
     : buildTagStats(state.catalogTasks, state.customTags);
 
+  // Preserve selected custom tags in the form even before any task has used them.
   state.formSelectedTags.forEach((tag) => {
     const normalizedTag = normalizeTag(tag);
     if (!normalizedTag) {
@@ -1040,6 +1047,7 @@ function getFilterTagStats() {
     : buildTagStats(state.catalogTasks, state.customTags);
 
   const activeTag = normalizeTag(state.filters.tag);
+  // Keep the active filter visible even when its current count drops to zero.
   if (activeTag && !tags.some((item) => item.name === activeTag)) {
     tags.push({ name: activeTag, count: 0 });
   }

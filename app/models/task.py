@@ -27,6 +27,8 @@ class TaskPriority(str, Enum):
 
 
 class Task(Base):
+    """Primary task entity with status, priority, tags, and dependency relations."""
+
     __tablename__ = "tasks"
     __table_args__ = (
         Index("ix_tasks_status", "status"),
@@ -74,6 +76,8 @@ class Task(Base):
 
 
 class TaskTag(Base):
+    """Normalized tag records so tag filtering and counting stay query-friendly."""
+
     __tablename__ = "task_tags"
     __table_args__ = (UniqueConstraint("task_id", "tag", name="uq_task_tag"),)
 
@@ -84,6 +88,8 @@ class TaskTag(Base):
 
 
 class TaskDependency(Base):
+    """Directed edges representing task prerequisites."""
+
     __tablename__ = "task_dependencies"
     __table_args__ = (UniqueConstraint("task_id", "depends_on_task_id", name="uq_task_dependency"),)
 

@@ -11,6 +11,8 @@ if str(ROOT) not in sys.path:
 DB_PATH = ROOT / "test_task_manager.db"
 if DB_PATH.exists():
     DB_PATH.unlink()
+# Set the database URL before importing the app so the test suite never touches the
+# developer's real local database file.
 os.environ["DATABASE_URL"] = f"sqlite:///{DB_PATH}"
 
 from fastapi.testclient import TestClient
@@ -22,6 +24,8 @@ from app.main import app
 
 @pytest.fixture(autouse=True)
 def reset_database() -> None:
+    # Rebuild schema state around every test so cache assertions and dependency
+    # scenarios do not leak into each other.
     task_cache.clear()
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)

@@ -42,6 +42,8 @@ def measure(iterations: int, fn) -> list[float]:
 def main() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "benchmark.db"
+        # Benchmark against an isolated temporary database so repeated runs do not
+        # depend on whatever data happens to be in the developer's local DB.
         os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
 
         from fastapi.testclient import TestClient
@@ -122,6 +124,7 @@ def main() -> None:
             create_samples = measure(20, create_task)
             detail_uncached_samples = measure(30, detail_uncached)
             task_cache.clear()
+            # Warm cache-backed endpoints once before measuring the HIT path.
             client.get(f"/api/tasks/{target_id}").raise_for_status()
             detail_cached_samples = measure(30, detail_cached)
             list_uncached_samples = measure(30, list_uncached)

@@ -110,6 +110,7 @@ class TaskService:
 
         dependencies: list[TaskDependencyTreeNode] = []
         for dependency in self.repository.get_direct_dependencies(task.id):
+            # Guard against corrupted graphs so tree rendering never loops forever.
             if dependency.id in next_visited:
                 dependencies.append(task_to_dependency_tree_node(dependency, []))
                 continue
@@ -118,6 +119,8 @@ class TaskService:
         return task_to_dependency_tree_node(task, dependencies)
 
     def _creates_cycle(self, task_id: str, dependency_id: str) -> bool:
+        # Depth-first traversal is enough here because we only need to know whether
+        # the proposed edge can already reach the source task.
         stack = [dependency_id]
         visited: set[str] = set()
 

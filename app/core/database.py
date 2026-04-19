@@ -12,6 +12,8 @@ class Base(DeclarativeBase):
 
 connect_args = {}
 if settings.database_url.startswith("sqlite"):
+    # SQLite connections are reused across requests in development, so thread checks
+    # need to be relaxed for FastAPI's request handling model.
     connect_args["check_same_thread"] = False
 
 engine = create_engine(
@@ -35,6 +37,8 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
+    # Importing models here ensures SQLAlchemy metadata is fully registered before
+    # create_all runs during application startup.
     from app.models import task  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

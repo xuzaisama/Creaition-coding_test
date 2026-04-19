@@ -48,6 +48,7 @@ class TaskRepository:
             statement = statement.where(Task.priority == priority)
             count_statement = count_statement.where(Task.priority == priority)
         if normalized_tags:
+            # Match tasks that contain any of the requested tags.
             tag_filter = Task.tags.any(TaskTag.tag.in_(normalized_tags))
             statement = statement.where(tag_filter)
             count_statement = count_statement.where(tag_filter)
@@ -176,6 +177,8 @@ class TaskRepository:
         task.tags.extend(TaskTag(tag=tag) for tag in tags)
 
     def _build_sort_expression(self, sort_by: TaskSortBy):
+        # Enums are stored as strings, so custom CASE expressions keep sort order
+        # aligned with the product meaning rather than lexical ordering.
         if sort_by == TaskSortBy.PRIORITY:
             return case(
                 (Task.priority == TaskPriority.LOW, 1),

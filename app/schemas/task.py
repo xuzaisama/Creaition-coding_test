@@ -37,6 +37,8 @@ class TaskCreate(BaseModel):
     @field_validator("tags")
     @classmethod
     def normalize_tags(cls, value: list[str]) -> list[str]:
+        # Tags are normalized once at the boundary so downstream layers can assume a
+        # clean, deduplicated list.
         seen: set[str] = set()
         normalized_tags: list[str] = []
         for item in value:
@@ -72,6 +74,8 @@ class TaskUpdate(BaseModel):
     def normalize_tags(cls, value: list[str] | None) -> list[str] | None:
         if value is None:
             return value
+        # Updates reuse the same normalization rules as creation to keep behavior
+        # consistent across write paths.
         seen: set[str] = set()
         normalized_tags: list[str] = []
         for item in value:
